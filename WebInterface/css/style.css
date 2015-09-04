@@ -1,0 +1,53 @@
+body { font-family:monospace; font-size:14px; }
+
+input.vertical {
+  -webkit-appearance: slider-vertical; writing-mode: bt-lr;
+  border:0; color:#f6931f; font-weight:bold;
+}
+
+#videoCanvas {
+  /* Always stretch the canvas to 640x480, regardless of its internal size. */
+  width: 640px;
+  height: 480px;
+}
+
+.divtable { display: table; border-spacing: 5px 5px; }
+.divtablecell { display: table-cell; padding: 5px; border: 0px; }
+.divtablecellborder { display: table-cell; padding: 5px; border: 1px solid gray; border-radius: 5px; }
+
+#box {  }
+#contentBox {
+  display:inline-block;
+  border: 1px solid black;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: left; 
+  border-radius: 5px; 
+  box-shadow: 0px 0px 25px #cccccc;
+}
+
+#Connection { vertical-align: top; }
+#Control {  }
+#PanTilt { vertical-align: top; }
+#Camera {  }
+#Orientation { vertical-align: top; }
+#Comps { }
+#Mapping {  }
+#column1 {  }
+#MotorSpeedLeft {  }
+#movement {  }
+#MotorSpeedRight {  }
+#movekeyboard {  }
+#column2 { vertical-align: top; }
+#column3 { vertical-align: top; }
+#column4 { vertical-align: top; }
+#foot {  }
+
+#Log {
+  letter-spacing:0px;
+  font-family: verdana, arial, helvetica, verdana, tahoma, sans-serif;
+  font-size:14px;
+  text-align:left;
+  font-weight:normal;
+}
+

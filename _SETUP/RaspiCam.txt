@@ -1,0 +1,297 @@
+apt-get update
+apt-get install -y curl build-essential libpcre3-dev libpcre++-dev zlib1g-dev libcurl4-openssl-dev libssl-dev git-core screen
+
+apt-get -y install nginx
+/etc/init.d/nginx stop
+apt-get -y remove nginx
+apt-get clean
+
+
+cd /usr/src
+git clone git://source.ffmpeg.org/ffmpeg.git
+cd ffmpeg
+screen
+./configure --disable-librtmp && make && make install
+
+
+cd /usr/src
+git clone https://github.com/nginx/nginx
+cd nginx
+git clone https://github.com/arut/nginx-rtmp-module.git
+#rm -rf /etc/nginx/*
+./configure --prefix=/var/www --sbin-path=/usr/sbin/nginx --conf-path=/etc/nginx/nginx.conf --pid-path=/var/run/nginx.pid --error-log-path=/var/log/nginx/error.log --http-log-path=/var/log/nginx/access.log --with-http_ssl_module --without-http_proxy_module --add-module=/usr/src/nginx/nginx-rtmp-module
+mkdir -p /var/www && chown www-data:www-data /var/www && chmod 775 /var/www
+make && make install
+
+
+usermod -G video -a www-data
+
+
+/etc/nginx/nginx.conf :
+
+user www-data;
+worker_processes  2;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections  1024;
+}
+
+http {
+
+    #log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+    #                  '$status $body_bytes_sent "$http_referer" '
+    #                  '"$http_user_agent" "$http_x_forwarded_for"';
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    #keepalive_timeout  0;
+    keepalive_timeout  65;
+    types_hash_max_size 2048;
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    gzip  on;
+    gzip_types text/plain application/json application/x-javascript text/xml application/xml application/xml+rss text/javascript application/javascript text/x-js application/x-mpegURL;
+
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+
+}
+
+rtmp {
+    server {
+        listen 1935;
+        #chunk_size 8192;
+        notify_method get;
+
+        application rtmp {
+            live on;
+
+            meta copy;
+            push rtmp://127.0.0.1/live/; # push stream to app "live"
+            allow publish all;
+            allow play all;
+
+            # Configure HLS stream; here only short backlog from ramdisk
+            #hls on;
+            #hls_path /tmp/hls;
+            #hls_fragment 10s;
+            #hls_playlist_length 30s;
+
+            # Configure manual recording of keyframes only
+            # Needs HTTP GET to get triggered
+            #recorder timelapse {
+            #    record keyframes manual;
+            #    record_path /tmp/record;   # my extended SD card partition
+            #    record_suffix -keyframes.flv;
+            #    record_unique on;
+            #    record_interval 6h;
+            #}
+
+            # Configure manual recording of all frames / live video
+            #recorder ondemand {
+            #    record video manual;
+            #    record_suffix -dump.flv;
+            #    record_path /tmp/record;
+            #    record_unique on;
+            #    record_notify on;
+            #    record_max_size 1024M;
+            #}
+
+            #This will start/stop our ffmpeg script and camera stream (thanks #towolf)
+            exec_static /usr/local/bin/rtmp-nginx.sh;
+            exec_kill_signal term;
+
+        }
+        application live {
+            live on;
+            record off;
+            allow publish 127.0.0.1;
+            deny publish all;
+            allow play all;
+        }
+    }
+}
+
+
+
+/etc/nginx/sites-enabled/default :
+
+server {
+    listen   80; ## listen for ipv4; this line is default and implied
+    #listen   [::]:80 default_server ipv6only=on; ## listen for ipv6
+
+    root /var/www;
+    index index.php index.html index.htm;
+
+    # Make site accessible from http://localhost/
+    server_name 127.0.0.1;
+
+    location / {
+        # First attempt to serve request as file, then
+        # as directory, then fall back to displaying a 404.
+        try_files $uri $uri/ /index.php /index.html;
+        # Uncomment to enable naxsi on this location
+        # include /etc/nginx/naxsi.rules
+    }
+
+        # rtmp stat  
+        location /stat {  
+            rtmp_stat all;  
+            rtmp_stat_stylesheet stat.xsl;  
+        }
+  
+        location /stat.xsl {  
+            # you can move stat.xsl to a different location  
+            root /usr/src/nginx-rtmp-module;  
+        }
+  
+        # rtmp control  
+        location /control {  
+            rtmp_control all;  
+        }
+
+        location /hls {
+            alias /tmp/hls;
+            autoindex on;
+            autoindex_localtime on;
+            set $sent_http_accept_ranges bytes;
+            types {
+                video/MP2T ts;
+                application/vnd.apple.mpegurl m3u8;
+            }
+        }
+
+        location /rtmpcontrol {
+            rtmp_control all;
+        }
+
+
+    location /doc/ {
+        alias /usr/share/doc/;
+        autoindex on;
+        allow 127.0.0.1;
+        deny all;
+    }
+
+    # Only for nginx-naxsi used with nginx-naxsi-ui : process denied requests
+    #location /RequestDenied {
+    #    proxy_pass http://127.0.0.1:8080;    
+    #}
+
+    #error_page 404 /404.html;
+
+    # redirect server error pages to the static page /50x.html
+    #
+    error_page 500 502 503 504 /50x.html;
+    location = /50x.html {
+        root /usr/share/nginx/www;
+    }
+
+    # pass the PHP scripts to FastCGI server listening on 127.0.0.1:9000
+    #
+    location ~ \.php$ {
+    #    fastcgi_split_path_info ^(.+\.php)(/.+)$;
+    #    # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini
+    #
+    #    # With php5-cgi alone:
+    #    fastcgi_pass 127.0.0.1:9000;
+    #    # With php5-fpm:
+        fastcgi_pass unix:/var/run/php5-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param  SCRIPT_FILENAME  /var/www/$fastcgi_script_name;
+        include fastcgi_params;
+    }
+
+    # deny access to .htaccess files, if Apache's document root
+    # concurs with nginx's one
+    #
+    location ~ /\.ht {
+        deny all;
+    }
+}
+
+
+
+nano /usr/local/bin/rtmp-nginx.sh && chmod a+x /usr/local/bin/rtmp-nginx.sh
+
+
+#!/bin/bash
+
+mkdir -p /tmp/hls
+
+on_die () {
+   # kill all children
+   pkill -KILL -P $$
+}
+
+trap 'on_die' TERM
+
+export FFREPORT="file=/tmp/ffmpeg-report.log"
+
+# Useful parameters to change here based on quality of network
+# (ethernet vs wifi vs internet)
+# are bitrate in bps (-b), frame rate (-f), and keyframe interval (-g)
+
+# -w 854 -h 480 -b 4000000 (480p at 4mb/s - should run pretty well everywhere)
+# -w 1280 -h 720 -b 5000000 (720p at 5mb/s - runs fine on wireless N, LAN and BT Infintiy)
+# -b 6000000 (1080p at 6mb/s - should really be used on LAN)
+
+# I've built ffmpeg without librtmp so it uses an internal implementation that
+# is much lower latency
+
+W='-w 640'
+H='-h 480'
+FPS='-fps 20'
+G='-g 250'
+B='-b 2000000'
+
+/opt/vc/bin/raspivid -n -mm matrix $W $H $FPS -t 0 $B -o - \
+  | ffmpeg -loglevel quiet -nostats -y \
+      -f h264 \
+      -i - \
+      -c:v copy \
+      -map 0:0 \
+      -f flv \
+      -rtmp_buffer 100 \
+      -rtmp_live live \
+      rtmp://127.0.0.1/rtmp/live &
+wait
+
+
+nohup /usr/local/bin/rtmp-nginx.sh &
+
+
+
+
+##### TIPS:
+
+Configuration for strobemediaplayback to disable buffering and let it stream as live as possible, 
+ignoring missed packets and just getting on with it. You just got be careful with what size, fps and bit rate you stream at. 
+If your network cant handle it you will get "slowmo" movements or lots or artefacts. good ffmpeg settings are 
+(you can adjust bit rates as you like - these are in order of overall quality) :
+
+ -w 854 -h 480 -b 4000000 (480p at 4mb/s - should run pretty well everywhere)
+ -w 1280 -h 720 -b 5000000 (720p at 5mb/s - runs fine on wireless N, LAN and BT Infintiy)
+-b 6000000 (1080p at 6mb/s - should really be used on LAN)
+
+
+ var parameters = {  
+         src: "rtmp://your-ip-here/myapplive/mystream",  
+                     autoPlay: false,  
+         controlBarAutoHide: false,  
+         playButtonOverlay: true,  
+         showVideoInfoOverlayOnStartUp: true,  
+                     optimizeBuffering : false,  
+                     initialBufferTime : 0.1,  
+                     expandedBufferTime : 0.1,  
+                     minContinuousPlayback : 0.1,  
+         poster: "images/poster.png"  
+       };  
+

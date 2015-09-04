@@ -1,0 +1,4 @@
+Braun  = GND
+Rot    = VCC (5V! mit 3V3 spinnen die Servos rum)
+Orange = Steuerleitung
+

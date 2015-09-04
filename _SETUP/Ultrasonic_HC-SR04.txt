@@ -1,0 +1,6 @@
+VCC to arduino 5V 
+GND to arduino GND
+Echo to Arduino pin 31 
+Trig to Arduino pin 30
+
+

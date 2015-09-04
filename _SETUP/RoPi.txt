@@ -1,0 +1,3 @@
+apt-get install python-pip python-serial python-tornado python-dev
+
+

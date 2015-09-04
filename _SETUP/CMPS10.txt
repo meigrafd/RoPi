@@ -1,0 +1,16 @@
+I2C UNO pins: A4 (SDA), A5 (SCL)
+I2C Mega2560 pins: 20 (SDA), 21 (SCL)
+
+
+ needed: 2x 1k8 or 4k7 resistors between:
+  Arduino pin A4 and 5V -> CMPS10 SCL
+  Arduino pin A5 and 5V -> CMPS10 SDA
+
+To enter the I2C mode of operation leave the mode pin unconnected
+To enter the serial mode of operation connect the mode pin to ground
+To enter the PWM mode of operation connect the select PWM pin to ground
+
+http://www.hobbytronics.co.uk/cmps10-tilt-compass
+
+
+
