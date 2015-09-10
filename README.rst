@@ -2,9 +2,6 @@
 Autonomer Roboter mit PI & Arduino
 ****************************************************
 
------
-
-|github_watchs| |github_stars| |github_forks|
 
 -----
 
