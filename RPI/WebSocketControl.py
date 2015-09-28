@@ -166,21 +166,23 @@ def WebRequestHandler(requestlist):
 
 ### WebSocket server tornado <-> WebInterface
 class WebSocketHandler(tornado.websocket.WebSocketHandler):
-  connections = []
-  # the client connected
-  def open(self):
-      printD("New client connected")
-      self.write_message("You are connected")
-      self.connections.append(self)
-  # the client sent the message
-  def on_message(self, message):
-      printD("Message from WebIf: >>>"+message+"<<<")
-      requestlist = message.splitlines()
-      self.write_message(WebRequestHandler(requestlist))
-  # client disconnected
-  def on_close(self):
-      printD("Client disconnected")
-      self.connections.remove(self)
+    connections = []
+    # the client connected
+    def check_origin(self, origin):
+        return True
+    def open(self):
+        printD("New client connected")
+        self.write_message("You are connected")
+        self.connections.append(self)
+    # the client sent the message
+    def on_message(self, message):
+        printD("Message from WebIf: >>>"+message+"<<<")
+        requestlist = message.splitlines()
+        self.write_message(WebRequestHandler(requestlist))
+    # client disconnected
+    def on_close(self):
+        printD("Client disconnected")
+        self.connections.remove(self)
 
 # start a new WebSocket Application
 # use "/" as the root, and the WebSocketHandler as our handler
@@ -190,14 +192,14 @@ application = tornado.web.Application([
 
 
 if __name__ == "__main__":
-  try:
-    # start the tornado webserver on port WebSocketPort
-    application.listen(WebSocketPort)
-    tornado.ioloop.IOLoop.instance().start()
-  except Exception, e1:
-    print("Error...: " + str(e1))
-  except KeyboardInterrupt:
-    print("Schliesse Programm..")
-    exit()
+    try:
+        # start the tornado webserver on port WebSocketPort
+        application.listen(WebSocketPort)
+        tornado.ioloop.IOLoop.instance().start()
+    except Exception, e1:
+        print("Error...: " + str(e1))
+    except KeyboardInterrupt:
+        print("Schliesse Programm..")
+        exit()
 
 # this is the main (3.) thread which exits after all is done, so Dont close it here!
